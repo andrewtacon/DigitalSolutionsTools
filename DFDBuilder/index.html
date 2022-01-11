@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Viz.js</title>
+  <style>
+    #app {
+      display: flex;
+      display: -webkit-flex;
+      flex-direction: column;
+      -webkit-flex-direction: column;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #header {
+      flex: 0 0 auto;
+      -webkit-flex: 0 0 auto;
+      line-height: 1.3;
+    }
+
+    #panes {
+      display: flex;
+      display: -webkit-flex;
+      flex: 1 1 auto;
+      -webkit-flex: 1 1 auto;
+    }
+
+    #graph {
+      display: flex;
+      display: -webkit-flex;
+      flex-direction: column;
+      -webkit-flex-direction: column;
+    }
+
+    #options {
+      flex: 0 0 auto;
+      -webkit-flex: 0 0 auto;
+    }
+
+    #output {
+      flex: 1 1 auto;
+      -webkit-flex: 1 1 auto;
+      position: relative;
+      overflow: auto;
+    }
+
+
+    #editor {
+      border-right: 1px solid #ccc;
+      visibility: hidden;
+      position: absolute;
+    }
+
+    #header {
+      background: #eee;
+      border-bottom: 1px solid #ccc;
+      padding: 8px;
+      text-align: center;
+      display: flex;
+      flex-direction: row;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    #header b {
+      font-size: 18px;
+    }
+
+    #options {
+      background: #eee;
+      border-bottom: 1px solid #ccc;
+      padding: 8px;
+    }
+
+    #options label {
+      margin-right: 8px;
+    }
+
+    #options #raw.disabled {
+      opacity: 0.5;
+    }
+
+    #output svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #output #text {
+      font-size: 12px;
+      font-family: monaco, courier, monospace;
+      white-space: pre;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+    }
+
+    #output img {
+      display: block;
+      margin: 0 auto;
+    }
+
+    #output.working svg,
+    #output.error svg,
+    #output.working #text,
+    #output.error #text,
+    #output.working img,
+    #output.error img {
+      opacity: 0.4;
+    }
+
+    #output.error #error {
+      display: inherit;
+    }
+
+    #output #error {
+      display: none;
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      margin-right: 20px;
+      background: red;
+      color: white;
+      z-index: 1;
+    }
+
+    .gutter {
+      background-color: #eee;
+      background-repeat: no-repeat;
+      background-position: 50%;
+    }
+
+    .gutter.gutter-horizontal {
+      background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==');
+      cursor: ew-resize;
+    }
+
+    .split {
+      -webkit-box-sizing: border-box;
+      -moz-box-sizing: border-box;
+      box-sizing: border-box;
+
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    .split.split-horizontal,
+    .gutter.gutter-horizontal {
+      height: 100%;
+      float: left;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div id="app">
+    <div id="header">
+      <b>DFD Builder</b>
+      <small>This site is a modifed clone of<br><a href="http://viz-js.com/">viz.js - GraphViz in the
+          browser</a></small>
+    </div>
+
+    <div id="panes" class="split split-horizontal">
+
+      <div id="customEditor" height="100%"
+        style="display:flex; flex-direction: column;background-color: aquamarine; flex-grow: 1;">
+        <textarea id="customInput" style="flex-grow: 1;" oninput="transpile()">
+# DFD Syntax
+#
+# Underscore represent the numbers 0 to 9 (no spaces)
+# Processes can also use underscores to represent
+# a decimal place.
+# Processes will display the number they are assigned
+#
+#
+# IDENTIFIERS
+#
+# External Entity    ee__ "Name in double quotes"
+# Process            p__ "Name in double quotes"
+# Data stores        ds_ X "Name in double quotes"
+#                    where x is an M, D, T
+#
+# Edges              
+#     identifier -> identifer "Data description"
+#
+# Add a '\n' to add extra space under label.
+# You will want to do this for processes. 
+# Label position can be adjusted on edges by
+# inserting <BR/> or spaces at the end of the text.
+#
+# Adding LR as a single line to the top of the 
+# script changes the orientation
+
+
+
+        </textarea>
+
+        <div style="display: flex; flex-direction: row; justify-content: space-between; background-color: #eee;">
+          <button onclick="sample()" style="flex-grow: 1;">Show Sample</button>
+          <button onclick="changeColours(); transpile();" style="flex-grow: 1;">Change Colours</button>
+        </div>
+        <div style="display: flex; flex-direction: row; justify-content: space-between; background-color: #eee;">
+          <div style="flex-grow: 1;  display: flex; flex-direction: row; justify-content: center;">
+            Coloured Lines
+            <input id="colouredLines" type="checkbox" onchange="colours()" checked>
+          </div>
+          <div style="flex-grow: 1;  display: flex; flex-direction: row; justify-content: center;">
+            Show Dot Editor
+            <input id="checker" type="checkbox" onchange="showEditor()">
+          </div>
+        </div>
+      </div>
+
+      <div id="editor" style="height:100%">digraph dfd{
+        node[shape=record]
+        graph [splines=ortho, nodesep=2]
+        rankdir=LR;
+        forcelabels=true;
+
+        rank=same;
+        }
+      </div>
+
+      <!-- 
+          store1 [label="{<f0>D|<f1> Some data store}" height=1 width=3];
+            proc1 [label="<f0> 1.0|<f1> Some process here\n\n\n" shape=Mrecord height=2 width=3];
+                enti1 [label="Customer" shape=box3d orientation=90 height=2 width=2];
+
+                store1 -> proc1 [xlabel="info" minlen=1 ];
+                proc1 -> store1 [xlabel="info" minlen=1 ];
+                enti1-> proc1 [xlabel = "beta" minlen=2];
+                enti1-> proc1 [xlabel = "alpha text" minlen=2];
+                enti1-> proc1 [xlabel = "alpha text" minlen=2];
+      
+      -->
+
+
+
+      <div id="graph" class="split">
+        <div id="options">
+          <label id="engine">
+            Engine:
+            <select>
+              <option>circo</option>
+              <option selected>dot</option>
+              <option>fdp</option>
+              <option>neato</option>
+              <option>osage</option>
+              <option>twopi</option>
+            </select>
+          </label>
+
+          <label id="format">
+            Format:
+            <select>
+              <option selected>svg</option>
+              <option>png-image-element</option>
+              <!--option>json</option>
+              <option>xdot</option>
+              <option>plain</option>
+              <option>ps</option-->
+            </select>
+          </label>
+
+          <label id="raw" style="visibility: hidden; position: absolute;">
+            <input type="checkbox"> Show raw output
+          </label>
+        </div>
+        <div id="output">
+          <div id="error"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="ace.js"></script>
+  <script src="viz.js"></script>
+  <script src="fabric.min.js"></script>
+  <script src="split.min.js"></script>
+  <script src="svg-pan-zoom.min.js"></script>
+  <script>
+
+    function colours() {
+      let checked = document.getElementById('colouredLines').checked
+      if (checked) {
+        coloursOn = true
+      } else {
+        coloursOn = false;
+      }
+      transpile()
+    }
+
+    function showEditor() {
+      let checked = document.getElementById('checker').checked
+      if (checked) {
+        document.getElementById('editor').style.visibility = 'visible';
+        document.getElementById('editor').style.position = 'relative';
+      } else {
+        document.getElementById('editor').style.visibility = 'hidden';
+        document.getElementById('editor').style.position = 'absolute';
+      }
+    }
+
+    /*
+    
+       store1 [label="{<f0>D|<f1> Some data store}" height=1 width=3];
+                proc1 [label="<f0> 1.0|<f1> Some process here\n\n\n" shape=Mrecord height=2 width=3];
+                    enti1 [label="Customer" shape=box3d orientation=90 height=2 width=2];
+    
+                    store1 -> proc1 [xlabel="info" minlen=1 ];
+                    proc1 -> store1 [xlabel="info" minlen=1 ];
+                    enti1-> proc1 [xlabel = "beta" minlen=2];
+                    enti1-> proc1 [xlabel = "alpha text" minlen=2];
+                    enti1-> proc1 [xlabel = "alpha text" minlen=2];
+    
+    */
+
+    function sample() {
+      let sampleData = `
+ee1 "User"
+p1_0 "Login and register"
+p2 "New favourites"
+p3 "Check booking"
+p4 "Gen location"
+p5 "Retrieve"
+p6 "Display Favs"
+p7 "Pull Data"
+
+ee1 -> p1_0 "user info"
+ee1 -> p2 "new favs"
+ee1 -> p5 "truck info request"
+
+p4 -> ee1 "truck location"
+p5 -> ee1 "truck name, bio etc"
+p6 -> ee1 "fav trucks"
+
+p3 -> p4 "lat lon"
+p3 -> p5 "truck id"
+
+ds1 d "userData"
+ds2 d "truckData"
+ds3 d "favourites"
+ds4 d "booking data"
+ds5 d "site data"
+
+p1_0 -> ds1 "user info"
+ds1 -> p2 "user id"
+ds2 -> p2 "truck data"
+p2 -> ds3 "favourites"
+ds4 -> p3 "site, truck, booking"
+ds5 -> p3 "site id, lat, lon"
+ds2 -> p5 "truck data"
+p5 -> ds2 "request truck data"
+ds3 -> p6 "favs"
+ds2 -> p3 "truck id"
+
+ee2 "API"
+ee2 -> p7 "site data"
+ee2 -> p7 "truck data"
+ee2 -> p7 "booking data"
+
+p7 -> ds4 "booking data"
+p7 -> ds2 "truck data"
+p7 -> ds5 "site data"
+
+`
+      document.getElementById('customInput').value = sampleData
+      transpile();
+
+    }
+
+
+
+    let coloursOn = true;
+
+    function transpile() {
+      let text = document.getElementById('customInput').value
+      let start = `digraph dfd{
+        node[shape=record]
+        graph [splines=ortho, nodesep=1.5, ranksep="1.2 equally"]
+        rankdir=TD;
+        forcelabels=true;
+        rank=same;
+        `
+      let end = `
+      }`
+      let middle = ``;
+
+      let lines = text.split("\n")
+
+      let td = false;
+      let colourCount = 0;
+      for (let i = 0; i < lines.length; i++) {
+        let line = lines[i]
+        line = line.trim()
+
+        let colours = ""
+        if (coloursOn) {
+          let col = colourList[colourCount]
+          colours = `color=${col}  fontcolor=${col}`;
+          colourCount++
+          if (colourCount === colourList.length) {
+            colourCount = 0
+          }
+        }
+
+        if (line === "LR") {
+          td = true;
+        }
+
+        let efontsize = 30
+        let fontsize = 24
+        if (line.search(/ee[0-9]+\s+->\s+p[0-9_]+\s+".*"\s*/g) === 0) { //ee to process
+          let pieces = line.split(" ")
+          let text = line.split('"');
+          middle += `${pieces[0]} ${pieces[1]} ${pieces[2]} [xlabel=<<B>${text[1]}</B>> minlen=1  fontsize="${fontsize}pt" ${colours} penwidth=2]
+          `
+        } else if (line.search(/p[0-9_]+\s+->\s+ee[0-9]+\s+".*"\s*/g) === 0) { //process to ee
+          let pieces = line.split(" ")
+          let text = line.split('"');
+          middle += `${pieces[0]} ${pieces[1]} ${pieces[2]} [xlabel=<<B>${text[1]}</B>> minlen=1  fontsize="${fontsize}pt"  ${colours} penwidth=2]
+          `
+        } else if (line.search(/p[0-9_]+\s+->\s+ds[0-9]+\s+".*"\s*/g) === 0) { //process to ds
+          let pieces = line.split(" ")
+          let text = line.split('"');
+          middle += `${pieces[0]} ${pieces[1]} ${pieces[2]} [xlabel=<<B>${text[1]}</B>> minlen=1  fontsize="${fontsize}pt"  ${colours} penwidth=2]
+          `
+
+        } else if (line.search(/ds[0-9]+\s+->\s+p[0-9_]+\s+".*"\s*/g) === 0) { //ds to p
+          let text = line.split('"');
+          let pieces = line.split(" ")
+          middle += `${pieces[0]} ${pieces[1]} ${pieces[2]} [xlabel=<<B>${text[1]}</B>> minlen=1  fontsize="${fontsize}pt" ${colours} penwidth=2]
+          `
+
+        } else if (line.search(/p[0-9_]+\s+->\s+p[0-9_]+\s+".*"\s*/g) === 0) { //process to process
+          let text = line.split('"');
+          let pieces = line.split(" ")
+          middle += `${pieces[0]} ${pieces[1]} ${pieces[2]} [xlabel=<<B>${text[1]}</B>> minlen=1  fontsize="${fontsize}pt" ${colours} penwidth=2]
+          `
+
+        } else if (line.search(/ds[0-9]+\s+[m|d|t|M|D|T]\s+".*"\s*/g) === 0) { //datastore definition
+          let pieces = line.split(" ")
+          let text = line.split('"');
+
+          let h = "";
+          if (td) {
+            h = "{"
+          }
+          middle += `${pieces[0]} [label="${h}<f0>${pieces[1].toUpperCase()}|<f1>${text[1]}}" height=1 width=3  fontsize="${efontsize}pt" penwidth=2];
+            `
+
+        } else if (line.search(/p[0-9_]+\s+".*"\s*/g) === 0) { //process defintion
+          let pieces = line.split(" ")
+          let text = line.split('"');
+
+          let h = "{";
+          if (td) {
+            h = ""
+          }
+
+          //      proc1 [label="<f0> 1.0|<f1> Some process here\n\n\n" shape=Mrecord height=2 width=3];
+
+          middle += `${pieces[0]} [label="${h}<f0>${pieces[0].replace("p", "").replace("_", ".").trim()}|<f1>${text[1]}}" shape=Mrecord height=2 width=3   fontsize="${efontsize}pt" penwidth=2];
+            `
+
+        } else if (line.search(/ee[0-9]+\s+".*"\s*/g) === 0) { //external entity defintion
+          //                 enti1 [label="Customer" shape=box3d orientation=90 height=2 width=2];
+          let pieces = line.split(" ")
+          let text = line.split('"');
+
+          middle += `${pieces[0]} [label="${text[1]}" shape=box3d orientation=90 height=2 width=2   fontsize="${efontsize}pt" penwidth=2];
+            `
+
+        }
+
+      }
+
+      if (td) {
+        start = start.replace("rankdir=TD;", "rankdir=LR;")
+      }
+
+      editor.setValue(start + middle + end)
+    }
+
+
+    var beforeUnloadMessage = null;
+
+    var resizeEvent = new Event("paneresize");
+    Split(['#editor', '#graph'], {
+      sizes: [25, 75],
+      onDragEnd: function () {
+        var svgOutput = document.getElementById("svg_output");
+        if (svgOutput != null) {
+          svgOutput.dispatchEvent(resizeEvent);
+        }
+      }
+    });
+
+    var editor = ace.edit("editor");
+    editor.getSession().setMode("ace/mode/dot");
+
+    var parser = new DOMParser();
+    var worker;
+    var result;
+
+    function updateGraph() {
+      if (worker) {
+        worker.terminate();
+      }
+
+      document.querySelector("#output").classList.add("working");
+      document.querySelector("#output").classList.remove("error");
+
+      worker = new Worker("./worker.js");
+
+      worker.onmessage = function (e) {
+        document.querySelector("#output").classList.remove("working");
+        document.querySelector("#output").classList.remove("error");
+
+        result = e.data;
+
+        updateOutput();
+      }
+
+      worker.onerror = function (e) {
+        document.querySelector("#output").classList.remove("working");
+        document.querySelector("#output").classList.add("error");
+
+        var message = e.message === undefined ? "An error occurred while processing the graph input." : e.message;
+
+        var error = document.querySelector("#error");
+        while (error.firstChild) {
+          error.removeChild(error.firstChild);
+        }
+
+        document.querySelector("#error").appendChild(document.createTextNode(message));
+
+        console.error(e);
+        e.preventDefault();
+      }
+
+      var params = {
+        src: editor.getSession().getDocument().getValue(),
+        options: {
+          engine: document.querySelector("#engine select").value,
+          format: document.querySelector("#format select").value
+        }
+      };
+
+      // Instead of asking for png-image-element directly, which we can't do in a worker,
+      // ask for SVG and convert when updating the output.
+
+      if (params.options.format == "png-image-element") {
+        params.options.format = "svg";
+      }
+
+      worker.postMessage(params);
+    }
+
+    function updateOutput() {
+      var graph = document.querySelector("#output");
+
+      var svg = graph.querySelector("svg");
+      if (svg) {
+        graph.removeChild(svg);
+      }
+
+      var text = graph.querySelector("#text");
+      if (text) {
+        graph.removeChild(text);
+      }
+
+      var img = graph.querySelector("img");
+      if (img) {
+        graph.removeChild(img);
+      }
+
+      if (!result) {
+        return;
+      }
+
+      if (document.querySelector("#format select").value == "svg" && !document.querySelector("#raw input").checked) {
+
+        /*
+          This inerted code change the symbols for the datastore to match the convention
+        */
+
+        let pieces = result.split("<!--")
+        for (let i = 0; i < pieces.length; i++) {
+          pieces[i] = pieces[i].split("-->")[1];
+        }
+
+        result = "";
+        for (let i = 0; i < pieces.length; i++) {
+          if (pieces[i] === undefined) { continue; }
+          if (pieces[i].trim().length !== 0) {
+
+            let string = pieces[i]
+            if (string.search(/<title\>ds\S+\<\/title>/) !== -1 && string.search(/class="node"/) !== -1) {
+              //console.log(string)
+              let points = [...string.matchAll(/points="s*[0-9,-. ]*s*"/g)]
+              for (let j = 0; j < points.length; j++) {
+                let pString = points[j][0]
+                let commas = [...pString.matchAll(/,/g)]
+                if (commas.length === 5) {
+
+                  //now the surgery
+                  let numbers = pString.split('"')[1].trim().replaceAll("  ", " ")
+                  //      console.log(numbers)
+                  let coord = numbers.split(" ")
+                  let newNumbers = ""
+                  newNumbers += coord[3] + " "
+                  newNumbers += coord[0] + " "
+                  newNumbers += coord[1] + " "
+                  newNumbers += coord[2] + " "
+                  newNumbers += coord[1] + " "
+                  newNumbers += coord[0] + " "
+                  newNumbers += coord[3]
+
+                  pieces[i] = pieces[i].replace(numbers, newNumbers)
+                }
+              }
+            }
+
+            result = result + pieces[i]
+          }
+        }
+
+
+        let opener = `<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+                      <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN"
+                      "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">`
+
+        result = opener + result
+
+        /* end of inserted code */
+
+
+        var svg = parser.parseFromString(result, "image/svg+xml").documentElement;
+        svg.id = "svg_output";
+
+
+        graph.appendChild(svg);
+
+
+
+
+
+        panZoom = svgPanZoom(svg, {
+          zoomEnabled: true,
+          controlIconsEnabled: true,
+          fit: true,
+          center: true,
+          minZoom: 0.1
+        });
+
+        svg.addEventListener('paneresize', function (e) {
+          panZoom.resize();
+        }, false);
+        window.addEventListener('resize', function (e) {
+          panZoom.resize();
+        });
+      } else if (document.querySelector("#format select").value == "png-image-element") {
+        var image = Viz.svgXmlToPngImageElement(result);
+        graph.appendChild(image);
+      } else {
+        var text = document.createElement("div");
+        text.id = "text";
+        text.appendChild(document.createTextNode(result));
+        graph.appendChild(text);
+      }
+    }
+
+
+
+    editor.on("change", function () {
+      updateGraph();
+      beforeUnloadMessage = "Your changes will not be saved.";
+    });
+
+    window.addEventListener("beforeunload", function (e) {
+      return beforeUnloadMessage;
+    });
+
+    document.querySelector("#engine select").addEventListener("change", function () {
+      updateGraph();
+    });
+
+    document.querySelector("#format select").addEventListener("change", function () {
+      if (document.querySelector("#format select").value === "svg") {
+        document.querySelector("#raw").classList.remove("disabled");
+        document.querySelector("#raw input").disabled = false;
+      } else {
+        document.querySelector("#raw").classList.add("disabled");
+        document.querySelector("#raw input").disabled = true;
+      }
+
+      updateGraph();
+    });
+
+    document.querySelector("#raw input").addEventListener("change", function () {
+      updateOutput();
+    });
+
+    updateGraph();
+
+    let colourList = [
+      "black",
+      "blue",
+      "blueviolet",
+      "brown",
+      "cadetblue",
+      "chocolate",
+      "crimson",
+      "darkblue",
+      "darkcyan",
+      "darkgreen",
+      "darkmagenta",
+      "darkolivegreen",
+      "darkorchid",
+      "darkred",
+      "darkslateblue",
+      "darkslategrey",
+      "darkviolet",
+      "deeppink",
+      "dimgrey",
+      "firebrick",
+      "forestgreen",
+      "grey",
+      "green",
+      "indigo",
+      "maroon",
+      "mediumblue",
+      "mediumpurple",
+      "mediumvioletred",
+      "midnightblue",
+      "navy",
+      "olive",
+      "purple",
+      "red",
+      "saddlebrown",
+      "sienna"
+    ]
+
+
+    function changeColours() {
+      colourList = shuffle(colourList)
+    }
+    changeColours();
+    function shuffle(array) {
+      let currentIndex = array.length, randomIndex;
+
+      // While there remain elements to shuffle...
+      while (currentIndex != 0) {
+
+        // Pick a remaining element...
+        randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+
+        // And swap it with the current element.
+        [array[currentIndex], array[randomIndex]] = [
+          array[randomIndex], array[currentIndex]];
+      }
+
+      return array;
+    }
+  </script>
+
+</body>
+
+</html>
