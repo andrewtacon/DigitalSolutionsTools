@@ -3,6 +3,7 @@ let style = `<style>
 h2 {
     margin:3px;
     text-transform: uppercase;
+    
 }
  h4 {
      margin: 0px 0px 0px 3px;
@@ -15,7 +16,7 @@ table,td {
 }
 
 td {
-    border-bottom: 12px solid white;
+    border-bottom: 6px solid white;
     border-right: 5px solid white;
 }
 
@@ -32,10 +33,13 @@ border-bottom: 1px solid #000;
     font-weight: bold;
     border: none !important;
     box-shadow: none !important;
-    text-align: right;
+    text-align: right !important;
     padding: 5px;
     text-transform: none !important;
     font-size: 16px !important;
+     display: flex;
+    align-items: center;
+    justify-content: flex-end !important;
 }
 
 .topRow {
@@ -45,11 +49,15 @@ border-bottom: 1px solid #000;
     box-shadow: 3px 3px;
     font-size: 21px;
     text-transform: uppercase;
-
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
 }
 
+
+
 .note {
-    width: 80px;
+    min-width: 80px;
     min-height: 80px;
     height: 100%;
     padding: 5px;
@@ -57,10 +65,16 @@ border-bottom: 1px solid #000;
     display: flex;
     justify-content: center;
     align-items: center;
+    text-direction: column;
     word-wrap: break-word;
     text-align:center;
     font-weight: bold;
     box-shadow: 3px 3px;
+    margin: auto;
+}
+
+.topRow {
+      height: 100%;
 }
 
 .firstColumn {
@@ -212,16 +226,28 @@ function generate(title, subtitle, columns, rows, min, max) {
     let page = ``;
     //    page += `<h1>${title}</h1>`
 
-    page += `<table><tr><td></td><td colspan="${columns[0].text.length + 1}"><h2>${title}</h2><h4>${subtitle}</h4></td></tr><tr>`
+    //  let insert = columns[0].text.length + 1
+
+    page += `<table><caption><h2>${title}</h2><h4>${subtitle}</h4></caption><tr>`
 
 
     let sectionNumber = 0;
     for (let i = 0; i < columns.length; i++) {
         if (columns[i].section !== "") {
+
+            let fixed = `style="width:${columns[i].sectionCount * 85 + (columns[i].sectionCount + 1) * 5}px;"`
+            let fixed2 = `style="break-word: break-all;"`
+            if (!document.getElementById('fw').checked) {
+                fixed = ""
+                fixed2 = ""
+            }
+
+
             if (i === 0) {
-                page += `<td  colspan="${columns[i].sectionCount}"><div class="topRow firstColumn">${columns[i].section.replaceAll(" ", "<br>")}</div></td>`
+
+                page += `<td ${fixed}  colspan="${columns[i].sectionCount}"><div ${fixed2} class="topRow firstColumn">${columns[i].section.replaceAll(" ", "<br>")}</div></td>`
             } else {
-                page += `<td   colspan="${columns[i].sectionCount}"><div class="topRow section${sectionNumber}">${columns[i].section}</div></td>`
+                page += `<td ${fixed}  colspan="${columns[i].sectionCount}"><div  ${fixed2} class="topRow section${sectionNumber}">${columns[i].section}</div></td>`
                 sectionNumber++
             }
         } else {
@@ -284,7 +310,12 @@ function generate(title, subtitle, columns, rows, min, max) {
     for (let i = 0; i < columns.length; i++) {
         if (columns[i].score !== "") {
             if (i === 0) {
-                page += `<td ><div class="firstColumn">${columns[i].score.replaceAll(" ", "<br>")}</div></td>`
+                let s = ""
+                if (typeof columns[i].score === 'string') {
+                    s = columns[i].score.replaceAll(" ", "<br>")
+                }
+
+                page += `<td ><div class="firstColumn">${s}</div></td>`
             } else {
                 let printScore = "--";
                 let value = -1;
@@ -320,17 +351,7 @@ function generate(title, subtitle, columns, rows, min, max) {
     }
     page += `</tr><table>`
 
-    let complete = `
-        <html>
-            <head>
-                <title>User Journey</title>
-                ${style}
-            <head>
-            <body>
-                ${page}
-            </body>
-        </html>
-    `
+
 
     /*   let iframe = document.createElement('iframe');
        iframe.srcdoc = complete
@@ -339,11 +360,29 @@ function generate(title, subtitle, columns, rows, min, max) {
        document.getElementById('target').appendChild(iframe)
    */
 
-
+    let fixed = '<style>.note{width: 85px !important;}</style>'
+    if (!document.getElementById('fw').checked) {
+        fixed = ""
+    }
     // iframe.contentWindow.document.open();
     if (!lf) {
-        document.getElementById('target').contentWindow.document.body.innerHTML = page;
+
+        document.getElementById('target').contentWindow.document.body.innerHTML = `${fixed}` + page;
+        //   console.log(page)
     } else {
+
+        let complete = `
+        <html>
+            <head>
+                <title>User Journey</title>
+                ${style}
+            <head>
+            <body>
+                ${fixed}
+                ${page}
+            </body>
+        </html>
+    `
 
         let myWindow = window.open("", "Journey Map", `toolbar=no, location=no,menubar=no, top=0, left = 0, status = no,titlebar=no,fullscreen=yes, width=${window.screen.width}, height=${window.screen.height}`);
         myWindow.document.write(complete);
@@ -380,18 +419,40 @@ function readFile(lineReader) {
     return { allData: allData, textRows: textRows }
 }
 
-function addListener() {
 
-    document.getElementById('target').contentWindow.document.head.innerHTML = style
+function reload() {
     let data = document.querySelector('textarea').value.split('\n');
     let result = readFile(data)
     getData(result.allData, result.textRows)
 
+}
+
+function addListener() {
+
+    document.getElementById('target').contentWindow.document.head.innerHTML = style
+    reload();
     document.querySelector('textarea').addEventListener('input', function (event) {
         let data = event.target.value.split('\n');
         let result = readFile(data)
         getData(result.allData, result.textRows)
     });
+
+    document.getElementById('textarea').addEventListener('keydown', function (e) {
+        if (e.key == 'Tab') {
+            e.preventDefault();
+            var start = this.selectionStart;
+            var end = this.selectionEnd;
+
+            // set textarea value to: text before caret + tab + text after caret
+            this.value = this.value.substring(0, start) +
+                "\t" + this.value.substring(end);
+
+            // put caret at right position again
+            this.selectionStart =
+                this.selectionEnd = start + 1;
+        }
+    });
+
 }
 
 
