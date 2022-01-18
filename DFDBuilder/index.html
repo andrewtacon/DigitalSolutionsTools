@@ -3,7 +3,7 @@
 
 <head>
   <meta charset="utf-8">
-  <title>Viz.js</title>
+  <title>DFD Builder</title>
   <style>
     #app {
       display: flex;
@@ -389,7 +389,7 @@ p7 -> ds5 "site data"
       let text = document.getElementById('customInput').value
       let start = `digraph dfd{
         node[shape=record]
-        graph [splines=ortho, nodesep=1.5, ranksep="1.2 equally"]
+        graph [splines=ortho, nodesep=2, ranksep="2 equally"]
         rankdir=TD;
         forcelabels=true;
         rank=same;
@@ -425,12 +425,12 @@ p7 -> ds5 "site data"
         if (line.search(/ee[0-9]+\s+->\s+p[0-9_]+\s+".*"\s*/g) === 0) { //ee to process
           let pieces = line.split(" ")
           let text = line.split('"');
-          middle += `${pieces[0]} ${pieces[1]} ${pieces[2]} [xlabel=<<B>${text[1]}</B>> minlen=1  fontsize="${fontsize}pt" ${colours} penwidth=2]
+          middle += `${pieces[0]} ${pieces[1]} ${pieces[2]} [xlabel=<<B>${text[1]}</B>> minlen=2  fontsize="${fontsize}pt" ${colours} penwidth=2]
           `
         } else if (line.search(/p[0-9_]+\s+->\s+ee[0-9]+\s+".*"\s*/g) === 0) { //process to ee
           let pieces = line.split(" ")
           let text = line.split('"');
-          middle += `${pieces[0]} ${pieces[1]} ${pieces[2]} [xlabel=<<B>${text[1]}</B>> minlen=1  fontsize="${fontsize}pt"  ${colours} penwidth=2]
+          middle += `${pieces[0]} ${pieces[1]} ${pieces[2]} [xlabel=<<B>${text[1]}</B>> minlen=2  fontsize="${fontsize}pt"  ${colours} penwidth=2]
           `
         } else if (line.search(/p[0-9_]+\s+->\s+ds[0-9]+\s+".*"\s*/g) === 0) { //process to ds
           let pieces = line.split(" ")
